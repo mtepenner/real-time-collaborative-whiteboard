@@ -7,6 +7,13 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  touch-action: none; /* Prevents mobile browsers from pulling-to-refresh on canvas */
+  touch-action: none;
   overscroll-behavior-y: none;
+}
+
+/* The new dot-grid background using your SVG */
+.bg-grid-pattern {
+  background-color: #f8fafc; /* Very light gray/blue (Tailwind slate-50) */
+  background-image: url('./assets/patterns/dot-grid.svg');
+  background-repeat: repeat;
 }
