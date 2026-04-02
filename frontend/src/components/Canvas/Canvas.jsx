@@ -4,14 +4,18 @@ import { useBoardStore } from '../../store/useBoardStore';
 import { useSocketListener } from '../../hooks/useSocket';
 import { drawCircle, drawRectangle, drawStraightLine } from '../../utils/geometry';
 
+// 1. IMPORT YOUR CUSTOM CURSORS
+import penCursor from '../../assets/cursors/pen.svg';
+import eraserCursor from '../../assets/cursors/eraser.svg';
+
 const Canvas = () => {
   const mainCanvasRef = useRef(null);
-  const draftCanvasRef = useRef(null); // The invisible layer for drawing shapes before committing
+  const draftCanvasRef = useRef(null);
   const socket = useSocket();
   
   const { tool, color, lineWidth } = useBoardStore();
   const [isDrawing, setIsDrawing] = useState(false);
-  const startPoint = useRef(null); // Stores where the mouse first clicked down
+  const startPoint = useRef(null);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -29,9 +33,7 @@ const Canvas = () => {
     setupCanvas(mainCanvasRef.current);
     setupCanvas(draftCanvasRef.current);
 
-    // Handle window resize gracefully
     const handleResize = () => {
-      // In a production app, you would save the current canvas data, resize, and redraw it here
       setupCanvas(mainCanvasRef.current);
       setupCanvas(draftCanvasRef.current);
     };
@@ -58,7 +60,9 @@ const Canvas = () => {
 
   // --- CORE DRAWING ENGINE ---
   const executeDraw = (ctx, x0, y0, x1, y1, strokeColor, strokeWidth, activeTool) => {
-    ctx.strokeStyle = activeTool === 'eraser' ? '#f9fafb' : strokeColor; // Matches bg-gray-50
+    // If erasing, draw with a fully transparent color (requires 'destination-out' composite operation)
+    // Or, match the background color if you aren't using a transparent canvas
+    ctx.strokeStyle = activeTool === 'eraser' ? '#f8fafc' : strokeColor; 
     ctx.lineWidth = strokeWidth;
 
     if (activeTool === 'pen' || activeTool === 'eraser') {
@@ -103,21 +107,12 @@ const Canvas = () => {
     const mainCtx = mainCanvasRef.current.getContext('2d');
 
     if (tool === 'pen' || tool === 'eraser') {
-      // Freehand draws directly to the main canvas instantly
-      executeDraw(
-        mainCtx, startPoint.current.x, startPoint.current.y, currentX, currentY, color, lineWidth, tool
-      );
+      executeDraw(mainCtx, startPoint.current.x, startPoint.current.y, currentX, currentY, color, lineWidth, tool);
       emitDrawEvent(startPoint.current.x, startPoint.current.y, currentX, currentY);
-      
-      // Update start point so it draws a continuous line
       startPoint.current = { x: currentX, y: currentY };
     } else {
-      // Shapes draw to the draft canvas to prevent smearing
-      // Clear the draft layer entirely before drawing the new frame
       draftCtx.clearRect(0, 0, draftCanvasRef.current.width, draftCanvasRef.current.height);
-      executeDraw(
-        draftCtx, startPoint.current.x, startPoint.current.y, currentX, currentY, color, lineWidth, tool
-      );
+      executeDraw(draftCtx, startPoint.current.x, startPoint.current.y, currentX, currentY, color, lineWidth, tool);
     }
   };
 
@@ -126,36 +121,38 @@ const Canvas = () => {
     setIsDrawing(false);
 
     if (tool !== 'pen' && tool !== 'eraser') {
-      // Mouse released! The shape is done.
       const endX = e.nativeEvent.offsetX;
       const endY = e.nativeEvent.offsetY;
       const draftCtx = draftCanvasRef.current.getContext('2d');
       const mainCtx = mainCanvasRef.current.getContext('2d');
 
-      // Clear the draft layer
       draftCtx.clearRect(0, 0, draftCanvasRef.current.width, draftCanvasRef.current.height);
-      
-      // Draw final shape to main canvas
-      executeDraw(
-        mainCtx, startPoint.current.x, startPoint.current.y, endX, endY, color, lineWidth, tool
-      );
-      
-      // Send the final shape to the server
+      executeDraw(mainCtx, startPoint.current.x, startPoint.current.y, endX, endY, color, lineWidth, tool);
       emitDrawEvent(startPoint.current.x, startPoint.current.y, endX, endY);
     }
     
     startPoint.current = null;
   };
 
+  // 2. DETERMINE THE ACTIVE CURSOR
+  // The '0 24' sets the exact pixel (bottom-left) of the SVG that registers the click
+  const activeCursor = tool === 'eraser' 
+    ? `url(${eraserCursor}) 0 24, crosshair` 
+    : `url(${penCursor}) 0 24, crosshair`;
+
   return (
-    <div className="relative w-full h-full cursor-crosshair">
-      {/* Main Persistent Layer */}
+    // Apply the dynamic style here
+    <div 
+      className="relative w-full h-full"
+      style={{ cursor: activeCursor }}
+    >
+      {/* 3. APPLY THE GRID PATTERN TO THE MAIN CANVAS */}
       <canvas
         ref={mainCanvasRef}
-        className="absolute inset-0 bg-gray-50 touch-none"
+        className="absolute inset-0 bg-grid-pattern touch-none"
       />
       
-      {/* Draft Layer for Shapes (Sits on top, captures the mouse events) */}
+      {/* Draft Layer for Shapes */}
       <canvas
         ref={draftCanvasRef}
         onMouseDown={handleMouseDown}
