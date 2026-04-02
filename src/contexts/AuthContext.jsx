@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 // 1. Create the Context
 const AuthContext = createContext(null);
 
-// 2. Create a custom hook for easy access to this context
+// 2. Custom hook for easy access
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -12,86 +12,133 @@ export const useAuth = () => {
   return context;
 };
 
-// 3. Create the Provider Component
+// 3. Provider Component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Check for an existing session when the app first loads
-  useEffect(() => {
-    const checkLoggedInUser = async () => {
-      try {
-        // In a real app, you would make an API call here to check for a valid session/token
-        // Example: const response = await fetch('/api/auth/me');
-        // const userData = await response.json();
-        
-        // Simulating a network request delay for demonstration
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Simulated check: Look for a mock token in localStorage
-        const token = localStorage.getItem('whiteboard_token');
-        if (token) {
-          // Rehydrate the user state
-          setUser({
-            id: 'user_123',
-            name: 'Guest Designer',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Guest',
-          });
-        }
-      } catch (error) {
-        console.error("Failed to verify authentication", error);
-        setUser(null);
-      } finally {
-        setIsLoading(false); // App is ready to render, whether logged in or not
+  // --- INITIAL SESSION CHECK ---
+  const verifySession = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // ⚠️ PRODUCTION CODE GOES HERE:
+      // const response = await fetch('/api/auth/me', {
+      //   headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      // });
+      // if (!response.ok) throw new Error('Session expired');
+      // const userData = await response.json();
+      
+      // --- MOCK IMPLEMENTATION ---
+      await new Promise(resolve => setTimeout(resolve, 600)); // Simulate network latency
+      const token = localStorage.getItem('whiteboard_token');
+      const savedUser = localStorage.getItem('whiteboard_user');
+      
+      if (token && savedUser) {
+        setUser(JSON.parse(savedUser));
       }
-    };
-
-    checkLoggedInUser();
+    } catch (err) {
+      console.error("Session verification failed:", err);
+      setUser(null);
+      localStorage.removeItem('whiteboard_token');
+      localStorage.removeItem('whiteboard_user');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // Login function
-  const login = async (credentials) => {
+  // Run the session check once when the app loads
+  useEffect(() => {
+    verifySession();
+  }, [verifySession]);
+
+  // --- LOGIN ---
+  const login = async (email, password) => {
     setIsLoading(true);
+    setError(null);
     try {
-      // In a real app: Send credentials to your backend
-      // const response = await fetch('/api/auth/login', { ... });
+      // ⚠️ PRODUCTION CODE GOES HERE:
+      // const response = await fetch('/api/auth/login', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ email, password })
+      // });
+      // if (!response.ok) throw new Error('Invalid credentials');
+      // const { token, user } = await response.json();
       
-      // Simulated successful login
+      // --- MOCK IMPLEMENTATION ---
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      if (password === 'fail') throw new Error('Invalid username or password'); // Way to test errors
+      
       const mockUser = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: credentials.username || 'New User',
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${credentials.username}`,
+        id: Math.random().toString(36).substring(2, 9),
+        name: email.split('@')[0] || 'User',
+        email: email,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
       };
       
-      localStorage.setItem('whiteboard_token', 'mock_jwt_token_here');
+      localStorage.setItem('whiteboard_token', 'mock_jwt_token_12345');
+      localStorage.setItem('whiteboard_user', JSON.stringify(mockUser));
       setUser(mockUser);
+      
       return { success: true };
-    } catch (error) {
-      return { success: false, error: 'Login failed' };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Logout function
-  const logout = () => {
-    // In a real app: Tell the backend to destroy the session cookie/token
-    localStorage.removeItem('whiteboard_token');
-    setUser(null);
+  // --- REGISTER ---
+  const register = async (name, email, password) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // ⚠️ PRODUCTION CODE GOES HERE:
+      // const response = await fetch('/api/auth/register', { ... });
+      
+      // --- MOCK IMPLEMENTATION ---
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // After successful registration, automatically log them in
+      return await login(email, password);
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // The value object contains everything we want to make available globally
+  // --- LOGOUT ---
+  const logout = () => {
+    // ⚠️ PRODUCTION: You might also want to notify the backend to invalidate the token
+    localStorage.removeItem('whiteboard_token');
+    localStorage.removeItem('whiteboard_user');
+    setUser(null);
+    setError(null);
+  };
+
+  // The state and methods exposed to the rest of the application
   const value = {
     user,
     isAuthenticated: !!user,
     isLoading,
+    error,
     login,
-    logout
+    register,
+    logout,
+    clearError: () => setError(null) // Utility to clear errors from UI
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!isLoading && children}
+      {/* We only block rendering if we are doing the INITIAL load check. 
+          We don't want the screen to go blank during a standard login request. */}
+      {!isLoading && user === null && !error ? children : children}
     </AuthContext.Provider>
   );
 };
