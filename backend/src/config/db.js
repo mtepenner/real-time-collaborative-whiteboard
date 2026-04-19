@@ -4,18 +4,21 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      // These options ensure stable connections in modern Mongoose versions
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+  const mongoUri = process.env.MONGO_URI;
 
+  if (!mongoUri) {
+    console.warn('⚠️ MONGO_URI is not set; starting server without a database connection.');
+    return false;
+  }
+
+  try {
+    const conn = await mongoose.connect(mongoUri);
     console.log(`📡 MongoDB Connected: ${conn.connection.host}`);
+    return true;
   } catch (error) {
     console.error(`❌ Database Connection Error: ${error.message}`);
-    // Exit the process with failure (1) if the database is required for the app to run
-    process.exit(1);
+    console.warn('⚠️ Continuing without database connectivity.');
+    return false;
   }
 };
 

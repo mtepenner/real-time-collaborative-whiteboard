@@ -17,7 +17,7 @@ export const useSocket = () => {
 // 3. Provider Component
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const { user, isAuthenticated } = useAuth(); // Import auth state to secure the connection
+  const { user } = useAuth(); // Import auth state to secure the connection
 
   useEffect(() => {
     // Determine the backend URL (Use environment variables in production)
@@ -73,7 +73,7 @@ export const SocketProvider = ({ children }) => {
         socketInstance.disconnect();
       }
     };
-  }, [user?.id]); // Re-run this effect if the user ID changes (e.g., they log in/out)
+  }, [user?.id, user?.name]); // Re-run when user identity data changes
 
   return (
     <SocketContext.Provider value={socket}>

@@ -8,7 +8,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   // Mock data: In a real app, you would fetch this from your database
-  const [recentBoards, setRecentBoards] = useState([
+  const [recentBoards] = useState([
     { id: 'board_1a2b', title: 'Q3 Product Wireframes', updatedAt: '2 hours ago', members: 3 },
     { id: 'board_3c4d', title: 'Marketing Campaign Brainstorm', updatedAt: 'Yesterday', members: 5 },
     { id: 'board_5e6f', title: 'System Architecture', updatedAt: 'Oct 12', members: 2 },

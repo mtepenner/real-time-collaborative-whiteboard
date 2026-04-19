@@ -92,7 +92,7 @@ const Home = () => {
             <Zap className="text-blue-600" size={32} />
           </div>
           <h3 className="text-xl font-bold text-gray-900 mb-3">Zero Latency</h3>
-          <p className="text-gray-600">Powered by WebSockets. See your team's cursors and drawings instantly as they happen.</p>
+          <p className="text-gray-600">Powered by WebSockets. See your team&apos;s cursors and drawings instantly as they happen.</p>
         </div>
 
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
